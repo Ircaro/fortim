@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sons do Fortim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<style>
+:root { --bg:#f2ece2; --panel:#fbf8f2; --ink:#3d405b; --dim:#8a8576; --line:#e3dacb; --a:#3d405b; --b:#5b8def; --c:#e07a5f; }
+@media (prefers-color-scheme: dark) { :root { --bg:#171a26; --panel:#232838; --ink:#ecebf3; --dim:#8d90a6; --line:#151824; --a:#a4a7b8; --b:#6aa7ff; --c:#ff8a65; } }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:Nunito, system-ui, sans-serif; }
+main { max-width:1000px; margin:0 auto; padding:24px 16px 56px; }
+h1 { margin:0 0 6px; font-size:26px; font-weight:900; }
+.lead { color:var(--dim); margin:0 0 20px; font-weight:600; }
+table { width:100%; border-collapse:separate; border-spacing:0 8px; }
+th { text-align:left; color:var(--dim); font-size:13px; font-weight:800; padding:0 8px; }
+td { background:var(--panel); padding:10px 8px; font-weight:800; }
+td:first-child { border-radius:12px 0 0 12px; padding-left:16px; }
+td:last-child { border-radius:0 12px 12px 0; }
+button { border:0; font:inherit; font-weight:800; font-size:14px; padding:10px 14px; min-height:44px; border-radius:12px; cursor:pointer; color:#fff; width:100%; }
+.s0 { background:var(--a); } .s1 { background:var(--b); } .s2 { background:var(--c); }
+button.playing { outline:3px solid var(--ink); outline-offset:2px; }
+.desc { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin:0 0 18px; }
+.desc div { background:var(--panel); border-radius:12px; padding:12px 14px; font-size:14px; font-weight:600; }
+.desc b { display:block; font-size:15px; margin-bottom:2px; }
+.vol { display:flex; gap:10px; align-items:center; color:var(--dim); font-weight:800; margin-bottom:12px; }
+@media (max-width:600px){ td { padding:8px 4px; font-size:13px; } button { padding:8px 6px; font-size:12px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sons do Fortim: compare os estilos</h1>
+  <p class="lead">Clique nos botões para ouvir. Todos são gerados por código, sem arquivos.</p>
+  <div class="desc">
+    <div><b style="color:var(--a)">A. Atual (8-bit)</b>Ondas quadradas de chip antigo. É o som que você achou velho.</div>
+    <div><b style="color:var(--b)">B. Suave e moderno</b>Marimba, sinos e cliques macios com reverberação. Combina com o visual flat.</div>
+    <div><b style="color:var(--c)">C. Orgânico e fantasia</b>Cordas dedilhadas, tambores de madeira e harpa. Clima de fábula medieval.</div>
+  </div>
+  <div class="vol">Volume <input type="range" id="vol" min="0" max="1" step="0.05" value="0.7"></div>
+  <table>
+    <thead><tr><th>Efeito</th><th>A. Atual</th><th>B. Suave</th><th>C. Orgânico</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</main>
+<script>
+let ctx = null, master = null, verb = null;
+function ac() {
+  if (ctx) return ctx;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  master = ctx.createGain(); master.gain.value = +document.getElementById('vol').value;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
+  master.connect(comp); comp.connect(ctx.destination);
+  verb = ctx.createConvolver(); verb.buffer = impulse(2.4, 3); const wet = ctx.createGain(); wet.gain.value = 0.32; verb.connect(wet); wet.connect(master);
+  return ctx;
+}
+document.getElementById('vol').oninput = (e) => { if (master) master.gain.value = +e.target.value; };
+function impulse(sec, decay) { const len = ctx.sampleRate * sec, b = ctx.createBuffer(2, len, ctx.sampleRate); for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay); } return b; }
+function out(node, rev = 0) { node.connect(master); if (rev > 0) { const g = ctx.createGain(); g.gain.value = rev; node.connect(g); g.connect(verb); } }
+const f = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+function tone(type, freq, t, dur, vol, opts = {}) {
+  const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.setValueAtTime(freq, t);
+  if (opts.to) o.frequency.exponentialRampToValueAtTime(opts.to, t + (opts.glide || dur));
+  if (opts.detune) o.detune.value = opts.detune;
+  const a = opts.attack ?? 0.004;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  let node = g; o.connect(g);
+  if (opts.lp) { const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = opts.lp; fl.Q.value = opts.q ?? 0.7; g.connect(fl); node = fl; }
+  out(node, opts.rev ?? 0); o.start(t); o.stop(t + dur + 0.05);
+}
+function noise(t, dur, vol, type, freq, opts = {}) {
+  const len = Math.ceil(ctx.sampleRate * dur), b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const s = ctx.createBufferSource(); s.buffer = b; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.setValueAtTime(freq, t); if (opts.to) fl.frequency.exponentialRampToValueAtTime(opts.to, t + dur); fl.Q.value = opts.q ?? 1;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + (opts.attack ?? 0.005)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(fl); fl.connect(g); out(g, opts.rev ?? 0); s.start(t); s.stop(t + dur);
+}
+function mallet(freq, t, vol = 0.35, dur = 0.6, rev = 0.25) { tone('sine', freq, t, dur, vol, { rev }); tone('sine', freq * 4, t, dur * 0.25, vol * 0.25, { rev }); tone('sine', freq * 10, t, 0.04, vol * 0.08); }
+function bell(freq, t, vol = 0.25, dur = 1.6, rev = 0.4) {
+  const car = ctx.createOscillator(), mod = ctx.createOscillator(), mg = ctx.createGain(), g = ctx.createGain();
+  car.frequency.value = freq; mod.frequency.value = freq * 3.5; mg.gain.setValueAtTime(freq * 2.2, t); mg.gain.exponentialRampToValueAtTime(1, t + dur);
+  mod.connect(mg); mg.connect(car.frequency); car.connect(g); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  out(g, rev); car.start(t); mod.start(t); car.stop(t + dur); mod.stop(t + dur);
+}
+function pluck(freq, t, vol = 0.4, dur = 1.2, bright = 0.5, rev = 0.25) {
+  const sr = ctx.sampleRate, len = Math.ceil(sr * dur), b = ctx.createBuffer(1, len, sr), d = b.getChannelData(0), p = Math.round(sr / freq);
+  const buf = new Float32Array(p); for (let i = 0; i < p; i++) buf[i] = Math.random() * 2 - 1;
+  let prev = 0;
+  for (let i = 0; i < len; i++) { const k = i % p; const v = buf[k]; d[i] = v; const nv = (v * (0.5 + bright * 0.5) + prev * (0.5 - bright * 0.5)) * 0.996; buf[k] = (nv + buf[(k + 1) % p]) * 0.5; prev = v; }
+  const s = ctx.createBufferSource(); s.buffer = b; const g = ctx.createGain(); g.gain.value = vol; s.connect(g); out(g, rev); s.start(t);
+}
+function woodDrum(freq, t, vol = 0.6) { tone('sine', freq * 2.2, t, 0.25, vol, { to: freq, glide: 0.08 }); noise(t, 0.05, vol * 0.4, 'bandpass', 1800, { q: 2 }); }
+
+const SFX = [
+  { name:'Tiro de arqueiro',
+    a:(t)=>{ tone('square', 1200, t, 0.08, 0.15, { to: 400 }); },
+    b:(t)=>{ noise(t, 0.16, 0.22, 'bandpass', 3200, { to: 900, q: 1.4, attack: 0.02 }); tone('sine', 900, t, 0.08, 0.06, { to: 500 }); },
+    c:(t)=>{ pluck(f(57), t, 0.35, 0.4, 0.2, 0.05); noise(t + 0.02, 0.14, 0.15, 'highpass', 2500, { to: 5000, attack: 0.02 }); } },
+  { name:'Canhão e explosão',
+    a:(t)=>{ tone('square', 180, t, 0.25, 0.22, { to: 40 }); noise(t, 0.35, 0.2, 'lowpass', 1200, { to: 200 }); },
+    b:(t)=>{ tone('sine', 120, t, 0.5, 0.6, { to: 38, glide: 0.35 }); noise(t, 0.6, 0.35, 'lowpass', 900, { to: 120, rev: 0.3 }); },
+    c:(t)=>{ woodDrum(70, t, 0.8); noise(t, 0.8, 0.35, 'lowpass', 700, { to: 90, rev: 0.4 }); tone('sine', 55, t, 0.7, 0.4); } },
+  { name:'Gelo',
+    a:(t)=>{ [1568, 2093, 2637].forEach((x, i) => tone('square', x, t + i * 0.04, 0.08, 0.08)); },
+    b:(t)=>{ [f(88), f(95), f(100)].forEach((x, i) => bell(x, t + i * 0.035, 0.12, 0.9, 0.6)); noise(t, 0.3, 0.06, 'highpass', 6000, { rev: 0.5 }); },
+    c:(t)=>{ [f(84), f(91), f(96)].forEach((x, i) => pluck(x, t + i * 0.05, 0.22, 0.9, 0.9, 0.5)); } },
+  { name:'Magia',
+    a:(t)=>{ tone('square', 600, t, 0.25, 0.12, { to: 1800 }); },
+    b:(t)=>{ tone('sine', 400, t, 0.5, 0.2, { to: 1400, glide: 0.3, rev: 0.6 }); tone('triangle', 800, t + 0.05, 0.45, 0.08, { to: 2400, glide: 0.3, rev: 0.6 }); },
+    c:(t)=>{ [0, 4, 7, 11, 14].forEach((s, i) => pluck(f(69 + s), t + i * 0.035, 0.18, 0.8, 0.7, 0.5)); } },
+  { name:'Construir torre',
+    a:(t)=>{ [0, 0.09, 0.18].forEach(d => tone('square', 220, t + d, 0.06, 0.18)); },
+    b:(t)=>{ mallet(f(60), t, 0.4); mallet(f(67), t + 0.08, 0.35); noise(t, 0.08, 0.15, 'lowpass', 900); },
+    c:(t)=>{ woodDrum(160, t, 0.6); woodDrum(140, t + 0.12, 0.5); woodDrum(180, t + 0.24, 0.55); } },
+  { name:'Melhorar torre',
+    a:(t)=>{ [523, 659, 784, 1047].forEach((x, i) => tone('square', x, t + i * 0.06, 0.08, 0.12)); },
+    b:(t)=>{ [72, 76, 79, 84].forEach((n, i) => mallet(f(n), t + i * 0.07, 0.3, 0.7)); },
+    c:(t)=>{ [67, 71, 74, 79, 83].forEach((n, i) => pluck(f(n), t + i * 0.06, 0.25, 1.2, 0.6, 0.35)); } },
+  { name:'Moedas',
+    a:(t)=>{ tone('square', 988, t, 0.06, 0.12); tone('square', 1319, t + 0.06, 0.12, 0.12); },
+    b:(t)=>{ bell(f(91), t, 0.14, 0.7, 0.3); bell(f(96), t + 0.07, 0.12, 0.8, 0.3); },
+    c:(t)=>{ [0, 0.05, 0.11].forEach((d, i) => bell(f(93 + i * 2), t + d, 0.1, 0.5, 0.2)); } },
+  { name:'Inimigo derrotado',
+    a:(t)=>{ tone('square', 440, t, 0.12, 0.14, { to: 110 }); },
+    b:(t)=>{ tone('sine', 700, t, 0.14, 0.25, { to: 220 }); noise(t, 0.1, 0.12, 'bandpass', 1400, { q: 2 }); },
+    c:(t)=>{ woodDrum(240, t, 0.4); noise(t, 0.18, 0.1, 'bandpass', 900, { q: 1.5, to: 400 }); } },
+  { name:'Onda começando',
+    a:(t)=>{ [392, 523, 659].forEach((x, i) => tone('square', x, t + i * 0.12, 0.2, 0.14)); },
+    b:(t)=>{ [[60, 67, 72], [62, 69, 74]].forEach((ch, i) => ch.forEach(n => tone('triangle', f(n), t + i * 0.35, 0.8, 0.12, { attack: 0.05, lp: 2200, rev: 0.4 }))); woodDrum(90, t, 0.4); woodDrum(90, t + 0.35, 0.4); },
+    c:(t)=>{ [55, 62, 67, 71].forEach((n, i) => tone('sawtooth', f(n), t + i * 0.02, 1.3, 0.06, { attack: 0.12, lp: 1400, rev: 0.5 })); woodDrum(70, t, 0.7); woodDrum(70, t + 0.25, 0.5); woodDrum(70, t + 0.5, 0.7); } },
+  { name:'Vitória',
+    a:(t)=>{ [523, 659, 784, 1047, 784, 1047].forEach((x, i) => tone('square', x, t + i * 0.12, 0.18, 0.13)); },
+    b:(t)=>{ [72, 76, 79, 84, 88].forEach((n, i) => mallet(f(n), t + i * 0.11, 0.3, 1.0)); [60, 64, 67, 72].forEach(n => tone('triangle', f(n), t + 0.55, 1.6, 0.08, { attack: 0.08, lp: 2500, rev: 0.6 })); },
+    c:(t)=>{ [60, 64, 67, 72, 76, 79, 84].forEach((n, i) => pluck(f(n), t + i * 0.08, 0.28, 1.8, 0.6, 0.5)); [48, 55, 64].forEach(n => tone('sawtooth', f(n), t + 0.5, 2.2, 0.05, { attack: 0.3, lp: 1200, rev: 0.6 })); } },
+];
+
+const MUSIC = {
+  a: { bpm: 140, play: (t, beat) => { const mel = [69, 72, 76, 72, 74, 71, 67, 71]; const bass = [45, 45, 43, 43]; for (let bar = 0; bar < 4; bar++) for (let i = 0; i < 8; i++) { const tt = t + (bar * 8 + i) * beat / 2; tone('square', f(mel[(i + bar * 3) % 8]), tt, beat * 0.45, 0.06); if (i % 4 === 0) tone('square', f(bass[bar]), tt, beat * 1.8, 0.07); } return 16 * beat; } },
+  b: { bpm: 92, play: (t, beat) => { const chords = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]; const mel = [76, 74, 72, 74, 76, 79, 76, 74]; chords.forEach((ch, bar) => { const tb = t + bar * 4 * beat; ch.forEach(n => tone('triangle', f(n), tb, 4 * beat, 0.05, { attack: 0.4, lp: 1600, rev: 0.6 })); tone('sine', f(ch[0] - 12), tb, 4 * beat, 0.12, { attack: 0.05 }); for (let i = 0; i < 4; i++) if ((i + bar) % 2 === 0) mallet(f(mel[(bar * 2 + i) % 8]), tb + i * beat, 0.16, 1.0, 0.4); }); return 16 * beat; } },
+  c: { bpm: 84, play: (t, beat) => { const chords = [[50, 57, 62], [48, 55, 60], [46, 53, 58], [45, 52, 57]]; chords.forEach((ch, bar) => { const tb = t + bar * 4 * beat; ch.forEach(n => tone('sawtooth', f(n), tb, 4 * beat, 0.035, { attack: 0.6, lp: 900, rev: 0.6 })); for (let i = 0; i < 8; i++) pluck(f(ch[i % 3] + 12 + (i > 3 ? 12 : 0)), tb + i * beat / 2, 0.16, 1.2, 0.5, 0.35); woodDrum(70, tb, 0.35); woodDrum(70, tb + 2 * beat, 0.25); }); return 16 * beat; } },
+};
+
+let musicTimer = null, musicBtn = null;
+function stopMusic() { if (musicTimer) clearTimeout(musicTimer); musicTimer = null; if (musicBtn) musicBtn.classList.remove('playing'); musicBtn = null; }
+function playMusic(key, btn) {
+  const was = musicBtn === btn; stopMusic(); if (was) return;
+  ac(); musicBtn = btn; btn.classList.add('playing');
+  const m = MUSIC[key], beat = 60 / m.bpm;
+  const loop = (t) => { const len = m.play(t, beat); musicTimer = setTimeout(() => loop(t + len), (t + len - ctx.currentTime - 0.3) * 1000); };
+  loop(ctx.currentTime + 0.05);
+}
+
+const rows = document.getElementById('rows');
+for (const s of SFX) {
+  const tr = document.createElement('tr'); tr.innerHTML = `<td>${s.name}</td>`;
+  ['a', 'b', 'c'].forEach((k, i) => { const td = document.createElement('td'); const b = document.createElement('button'); b.className = 's' + i; b.textContent = 'Tocar'; b.onclick = () => { ac(); ctx.resume(); s[k](ctx.currentTime + 0.02); }; td.appendChild(b); tr.appendChild(td); });
+  rows.appendChild(tr);
+}
+const tr = document.createElement('tr'); tr.innerHTML = '<td>Música (repete)</td>';
+['a', 'b', 'c'].forEach((k, i) => { const td = document.createElement('td'); const b = document.createElement('button'); b.className = 's' + i; b.textContent = 'Tocar / parar'; b.onclick = () => { ac(); ctx.resume(); playMusic(k, b); }; td.appendChild(b); tr.appendChild(td); });
+rows.appendChild(tr);
+</script>
+</body>
+</html>

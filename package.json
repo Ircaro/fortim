@@ -1,0 +1,22 @@
+{
+  "name": "fortim",
+  "version": "0.2.0",
+  "description": "Tower defense 2D no estilo flat minimalista, para navegador e celular. 5 fases, modo infinito, 6 torres com especializações, chefe, poderes especiais e som gerado por código. Feito em TypeScript + Vite, sem engine.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource/outfit": "^5.2.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}
