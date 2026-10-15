@@ -94,3 +94,8 @@ export function resultTitle(victory: boolean): string {
 export function resultSubtitle(victory: boolean): string {
   return victory ? 'O vale está a salvo.' : 'Os inimigos romperam a defesa.';
 }
+
+export function restartConfirmText(stageName: string, infinite: boolean): string {
+  const start = infinite ? 'recomeça do início do modo infinito' : 'recomeça da onda 1';
+  return `A partida atual será perdida, e ${stageName} ${start}, com o ouro e as vidas do começo.`;
+}

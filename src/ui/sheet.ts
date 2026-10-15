@@ -17,8 +17,10 @@ import {
   yesNo,
 } from './format';
 import { drawTowerIcon } from './icons';
+import { palette } from '../theme';
+import { commonTargetMode } from '../game/state';
 
-export type SheetMode = 'none' | 'torre' | 'posicionar';
+export type SheetMode = 'none' | 'torre' | 'posicionar' | 'grupo';
 
 export interface TowerSheet {
   readonly el: HTMLElement;
@@ -66,7 +68,7 @@ export function createTowerSheet(callbacks: UiCallbacks, mapbox: HTMLElement): T
   close.setAttribute('aria-label', 'Fechar');
   close.title = 'Fechar';
   close.addEventListener('click', () => {
-    if (mode === 'torre') callbacks.onDeselect();
+    if (mode === 'torre' || mode === 'grupo') callbacks.onDeselect();
     else callbacks.onPickTower(null);
   });
   head.append(icon, titles, close);
@@ -191,11 +193,33 @@ export function createTowerSheet(callbacks: UiCallbacks, mapbox: HTMLElement): T
   const sell = button('ft-btn', '', () => callbacks.onSell());
   acts.append(upgrade, sell);
 
+  const multiRow = h('div', 'ft-multi-row only-sel');
+  const multiBtn = button('ft-btn ft-multi', 'Selecionar várias', () => callbacks.onToggleMulti());
+  const multiHint = h('span', 'ft-multi-hint', 'ou Shift + clique');
+  multiRow.append(multiBtn, multiHint);
+
+  const groupBox = h('div', 'ft-group only-grupo');
+  const groupList = h('div', 'ft-group-list');
+  const groupTarget = h('div', 'ft-target-all');
+  groupTarget.appendChild(h('div', 'ft-field-label', 'Alvo de todas'));
+  const groupSeg = h('div', 'ft-seg ft-seg-grid');
+  groupSeg.setAttribute('role', 'group');
+  groupSeg.setAttribute('aria-label', 'Alvo de todas');
+  const groupButtons = new Map<TargetMode, HTMLButtonElement>();
+  for (const m of TARGET_MODES) {
+    const b = button('ft-seg-btn', targetModeName(m), () => callbacks.onTargetMode(m));
+    groupButtons.set(m, b);
+    groupSeg.appendChild(b);
+  }
+  groupTarget.appendChild(groupSeg);
+  const groupNote = h('p', 'ft-group-note');
+  groupBox.append(groupList, groupTarget, groupNote);
+
   const pickActs = h('div', 'ft-acts only-pick');
   const cancel = button('ft-btn', 'Cancelar', () => callbacks.onPickTower(null));
   pickActs.append(cancel);
 
-  el.append(grip, head, desc, rows, matchup, hint, targetBox, specBox, acts, pickActs);
+  el.append(grip, head, multiRow, desc, rows, matchup, hint, groupBox, targetBox, specBox, acts, pickActs);
   let lastState: UiState | null = null;
 
   function renderPips(count: number, filled: number): void {
@@ -220,6 +244,33 @@ export function createTowerSheet(callbacks: UiCallbacks, mapbox: HTMLElement): T
     setText(weakText, TOWER_GUIDE[def.id].weak);
   }
 
+  function renderGroup(state: UiState): void {
+    const towers = state.group;
+    setText(name, `${towers.length} torres selecionadas`);
+    setClass(el, 'has-spec', false);
+    const key = towers.map((t) => `${t.uid}:${t.def.id}:${t.level}:${t.spec ?? ''}:${t.targetMode}`).join('|');
+    if (changed(groupList, 'items', key)) {
+      const colors = palette().tower;
+      groupList.replaceChildren(
+        ...towers.map((t) => {
+          const item = h('div', 'ft-group-item');
+          const dot = h('span', 'ft-group-dot');
+          dot.style.background = colors[t.def.id];
+          const spec = t.spec ? t.def.specs[t.spec === 'a' ? 0 : 1].name : t.def.name;
+          const levelLabel = t.spec ? 'nível 4' : `nível ${Math.min(t.level, t.def.levels.length - 1) + 1}`;
+          item.append(dot, h('span', 'ft-group-name', `${spec} · ${levelLabel}`), h('span', 'ft-group-mode', targetModeName(t.targetMode)));
+          return item;
+        }),
+      );
+    }
+    const common = commonTargetMode(towers);
+    for (const [m, b] of groupButtons) {
+      setPressed(b, common === m);
+      setClass(b, 'is-part', common === null && towers.some((t) => t.targetMode === m));
+    }
+    setText(groupNote, common === null ? 'Os alvos estão diferentes. O contorno marca os que estão em uso; tocar num botão aplica a todas.' : 'Tocar num botão troca o alvo de todas de uma vez.');
+  }
+
   let sideKey = '';
   let pointerCol: number | null = null;
 
@@ -234,7 +285,14 @@ export function createTowerSheet(callbacks: UiCallbacks, mapbox: HTMLElement): T
   mapbox.addEventListener('pointerdown', trackPointer, { passive: true });
 
   function updateSide(state: UiState): void {
-    const col = mode === 'torre' && state.selected ? state.selected.col : mode === 'posicionar' ? pointerCol : null;
+    const col =
+      mode === 'torre' && state.selected
+        ? state.selected.col
+        : mode === 'grupo' && state.group.length > 0
+          ? state.group[state.group.length - 1].col
+          : mode === 'posicionar'
+            ? pointerCol
+            : null;
     const key = col === null ? '' : `${mode}|${col}|${window.innerWidth}x${window.innerHeight}`;
     if (key === sideKey) return;
     sideKey = key;
@@ -243,7 +301,8 @@ export function createTowerSheet(callbacks: UiCallbacks, mapbox: HTMLElement): T
 
   function render(state: UiState, paletteVersion: number): void {
     lastState = state;
-    const next: SheetMode = state.screen !== 'jogo' ? 'none' : state.selected ? 'torre' : state.picking ? 'posicionar' : 'none';
+    const next: SheetMode =
+      state.screen !== 'jogo' ? 'none' : state.group.length > 1 ? 'grupo' : state.selected ? 'torre' : state.picking ? 'posicionar' : 'none';
     if (next !== mode) {
       mode = next;
       if (mode !== 'none') el.dataset.mode = mode;
@@ -251,6 +310,12 @@ export function createTowerSheet(callbacks: UiCallbacks, mapbox: HTMLElement): T
     setClass(el, 'is-open', mode !== 'none');
     updateSide(state);
     setAttr(el, 'aria-hidden', mode === 'none' ? 'true' : 'false');
+    setPressed(multiBtn, state.multiMode);
+    setClass(multiHint, 'is-hidden', state.touch);
+    if (mode === 'grupo') {
+      renderGroup(state);
+      return;
+    }
     if (mode === 'torre' && state.selected) {
       const t = state.selected;
       const current = towerLevel(t);

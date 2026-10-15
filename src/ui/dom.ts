@@ -68,6 +68,7 @@ export const ICONS = {
   close: `${SVG_OPEN}<path d="M6.5 6.5l11 11M17.5 6.5l-11 11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>`,
   speed: `${SVG_OPEN}<path d="M3.5 7.2v9.6a.9.9 0 0 0 1.4.7l6.6-4.8a.9.9 0 0 0 0-1.4L4.9 6.5a.9.9 0 0 0-1.4.7zM12.5 7.2v9.6a.9.9 0 0 0 1.4.7l6.6-4.8a.9.9 0 0 0 0-1.4l-6.6-4.8a.9.9 0 0 0-1.4.7z"/></svg>`,
   heart: `${SVG_OPEN}<path d="M12 20.6l-1.3-1.2C5.9 15.1 3 12.4 3 8.9A4.6 4.6 0 0 1 7.6 4.3c1.7 0 3.3.8 4.4 2.1a5.8 5.8 0 0 1 4.4-2.1A4.6 4.6 0 0 1 21 8.9c0 3.5-2.9 6.2-7.7 10.5z"/></svg>`,
+  restart: `${SVG_OPEN}<path d="M4.6 12a7.4 7.4 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M3.8 3.9v4.6h4.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   book: `${SVG_OPEN}<path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H11v16H5.7A1.7 1.7 0 0 0 4 21.2zM20 5.2a1.7 1.7 0 0 0-1.7-1.7H13v16h5.3a1.7 1.7 0 0 1 1.7 1.7z"/></svg>`,
 };
 

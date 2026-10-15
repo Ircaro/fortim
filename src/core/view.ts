@@ -44,7 +44,7 @@ export interface RendererApi {
   handleEvent(event: BattleEvent): void;
   resize(): void;
   frame(realDt: number, now: number): void;
-  setSelected(towerUid: number | null): void;
+  setSelected(towerUids: readonly number[]): void;
   setHovered(towerUid: number | null): void;
   setGhost(ghost: Ghost | null): void;
   cellAt(clientX: number, clientY: number): GridPoint | null;
@@ -152,6 +152,8 @@ export interface UiState {
   phase: BattlePhase;
   picking: TowerId | null;
   selected: TowerState | null;
+  group: TowerState[];
+  multiMode: boolean;
   upgradeCost: number | null;
   sellValue: number;
   affordable: Record<TowerId, boolean>;
@@ -171,6 +173,7 @@ export interface UiCallbacks {
   onSell(): void;
   onTargetMode(mode: TargetMode): void;
   onDeselect(): void;
+  onToggleMulti(): void;
   onStartWave(): void;
   onTogglePause(): void;
   onCycleSpeed(): void;

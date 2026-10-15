@@ -27,6 +27,9 @@ import {
   nextSpeed,
   tutorialView,
   waveSummary,
+  pruneSelection,
+  selectedUids,
+  toggleSelection,
 } from './state';
 
 const RESULT_DELAY = 1900;
@@ -112,7 +115,7 @@ export function startGame(root: HTMLElement | null): void {
   let pendingAim: Point | null = null;
   let lastGhostKey = '';
   let lastAimKey = '';
-  let lastSelected: number | null = null;
+  let lastSelected = '';
   let lastHovered: number | null = null;
   let savedWave = -1;
   let tutorialStep: number | null = null;
@@ -220,13 +223,18 @@ export function startGame(root: HTMLElement | null): void {
       if (!battle.upgradePlus(control.selectedUid)) sfx('error');
     },
     onTargetMode: (mode: TargetMode) => {
-      if (control.selectedUid === null) return;
+      const uids = selectedUids(control);
+      if (uids.length === 0) return;
       sfx('click');
-      battle.setTargetMode(control.selectedUid, mode);
+      for (const uid of uids) battle.setTargetMode(uid, mode);
     },
     onDeselect: () => {
       sfx('click');
-      control.selectedUid = null;
+      clearSelection();
+    },
+    onToggleMulti: () => {
+      sfx('click');
+      control.multiMode = !control.multiMode;
     },
     onStartWave: () => {
       if (startWave()) sfx('click');
@@ -284,9 +292,15 @@ export function startGame(root: HTMLElement | null): void {
     }
   }
 
+  function clearSelection(): void {
+    control.selectedUid = null;
+    control.group = [];
+    control.multiMode = false;
+  }
+
   function clearInteraction(): void {
     control.picking = null;
-    control.selectedUid = null;
+    clearSelection();
     control.aiming = null;
     pendingCell = null;
     hoverCell = null;
@@ -294,11 +308,11 @@ export function startGame(root: HTMLElement | null): void {
     pendingAim = null;
     renderer.setGhost(null);
     renderer.setHovered(null);
-    renderer.setSelected(null);
+    renderer.setSelected([]);
     renderer.setPowerAim(null);
     lastGhostKey = '';
     lastAimKey = '';
-    lastSelected = null;
+    lastSelected = '';
     lastHovered = null;
   }
 
@@ -383,7 +397,7 @@ export function startGame(root: HTMLElement | null): void {
     control.picking = id;
     pendingCell = null;
     if (id !== null) {
-      control.selectedUid = null;
+      clearSelection();
       control.aiming = null;
       if (tutorialStep === 0) advanceTutorial(1);
     }
@@ -406,7 +420,7 @@ export function startGame(root: HTMLElement | null): void {
       setPicking(null);
       return;
     }
-    control.selectedUid = null;
+    clearSelection();
   }
 
   function startWave(): boolean {
@@ -435,7 +449,7 @@ export function startGame(root: HTMLElement | null): void {
       } else {
         control.aiming = id;
         control.picking = null;
-        control.selectedUid = null;
+        clearSelection();
       }
       pendingAim = null;
       return true;
@@ -486,7 +500,7 @@ export function startGame(root: HTMLElement | null): void {
       sfx('error');
       return;
     }
-    control.selectedUid = null;
+    clearSelection();
   }
 
   function buildAt(id: TowerId, col: number, row: number): number | null {
@@ -641,6 +655,7 @@ export function startGame(root: HTMLElement | null): void {
       pending: pendingCell,
       touch: control.touch,
       shift,
+      multi: control.multiMode,
       towerUid: tower ? tower.uid : null,
       canPlace: picking !== null && cell !== null ? canPlace(picking, cell) : false,
     });
@@ -662,12 +677,21 @@ export function startGame(root: HTMLElement | null): void {
         sfx('error');
         break;
       case 'select':
-        if (control.selectedUid !== action.uid) sfx('click');
+        if (control.selectedUid !== action.uid || control.group.length > 0) sfx('click');
         if (control.picking !== null) setPicking(null);
         control.selectedUid = action.uid;
+        control.group = [];
         break;
+      case 'toggle': {
+        sfx('click');
+        const next = toggleSelection(control, action.uid);
+        control.selectedUid = next.selectedUid;
+        control.group = next.group;
+        if (next.selectedUid === null && next.group.length === 0) control.multiMode = false;
+        break;
+      }
       case 'deselect':
-        control.selectedUid = null;
+        clearSelection();
         break;
       case 'none':
         break;
@@ -808,8 +832,11 @@ export function startGame(root: HTMLElement | null): void {
   if (typeof ResizeObserver === 'function') new ResizeObserver(resize).observe(ui.mapHost);
 
   function syncView(): void {
-    if (control.selectedUid !== null && !battle.towers.some((t) => t.uid === control.selectedUid)) {
-      control.selectedUid = null;
+    const pruned = pruneSelection(control, (uid) => battle.towers.some((t) => t.uid === uid));
+    if (pruned.selectedUid !== control.selectedUid || pruned.group !== control.group) {
+      control.selectedUid = pruned.selectedUid;
+      control.group = pruned.group;
+      if (pruned.selectedUid === null && pruned.group.length === 0) control.multiMode = false;
     }
     if (control.aiming !== null && !battle.canCastPower(control.aiming)) {
       control.aiming = null;
@@ -836,9 +863,10 @@ export function startGame(root: HTMLElement | null): void {
       lastAimKey = aimKey;
       renderer.setPowerAim(aim);
     }
-    const selected = inGame() ? control.selectedUid : null;
-    if (selected !== lastSelected) {
-      lastSelected = selected;
+    const selected = inGame() ? selectedUids(control) : [];
+    const selectedKey = selected.join(',');
+    if (selectedKey !== lastSelected) {
+      lastSelected = selectedKey;
       renderer.setSelected(selected);
     }
     let hovered: number | null = null;
@@ -887,6 +915,7 @@ export function startGame(root: HTMLElement | null): void {
       select: (uid) => {
         setPicking(null);
         control.selectedUid = uid;
+        control.group = [];
       },
       setSpeed: (speed) => {
         control.speed = clampSpeed(speed);

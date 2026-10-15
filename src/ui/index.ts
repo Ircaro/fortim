@@ -26,6 +26,8 @@ import { createMenu } from './menu';
 import { createBossBar, createPowerBar, createTutorialCard } from './play';
 import { DIFFICULTIES } from '../data/difficulty';
 import { createTowerSheet } from './sheet';
+import { createConfirmModal } from './confirm';
+import { restartConfirmText } from './format';
 
 interface ShopCard {
   id: TowerId;
@@ -86,7 +88,30 @@ export function createUi(root: HTMLElement, callbacks: UiCallbacks): UiApi {
   }
 
   const guideBtn = iconButton('ft-ctl', ICONS.book, 'Guia', () => openGuide());
-  controls.append(pauseBtn.el, speedBtn, soundBtn.el, guideBtn.el, settingsBtn.el);
+  const confirm = createConfirmModal();
+  let restartPaused = false;
+
+  function askRestart(): void {
+    if (!last || last.screen !== 'jogo' || confirm.isOpen()) return;
+    restartPaused = !last.paused;
+    if (restartPaused) callbacks.onTogglePause();
+    confirm.open({
+      title: 'Reiniciar a fase?',
+      text: restartConfirmText(last.stageName, last.infinite),
+      confirmLabel: 'Reiniciar',
+      onConfirm: () => {
+        restartPaused = false;
+        callbacks.onRestart();
+      },
+      onCancel: () => {
+        if (restartPaused && last?.screen === 'jogo' && last.paused) callbacks.onTogglePause();
+        restartPaused = false;
+      },
+    });
+  }
+
+  const restartCtl = iconButton('ft-ctl', ICONS.restart, 'Reiniciar fase', () => askRestart());
+  controls.append(pauseBtn.el, restartCtl.el, speedBtn, soundBtn.el, guideBtn.el, settingsBtn.el);
   hud.append(stats, controls);
 
   const stage = h('div', 'ft-stage');
@@ -97,6 +122,7 @@ export function createUi(root: HTMLElement, callbacks: UiCallbacks): UiApi {
   pauseBox.append(
     h('div', 'ft-pause-title', 'Pausado'),
     button('ft-btn primary ft-big', 'Continuar', () => callbacks.onTogglePause()),
+    button('ft-btn', 'Reiniciar fase', () => askRestart()),
     button('ft-btn', 'Menu', () => callbacks.onMenu()),
   );
   pauseVeil.appendChild(pauseBox);
@@ -202,7 +228,7 @@ export function createUi(root: HTMLElement, callbacks: UiCallbacks): UiApi {
 
   const floats = h('div', 'ft-floats');
 
-  ft.append(hud, stage, nextWaveSide.el, dock, sheet.el, menu.el, result, modal, guide.el, achievements.el, floats);
+  ft.append(hud, stage, nextWaveSide.el, dock, sheet.el, menu.el, result, modal, guide.el, achievements.el, confirm.el, floats);
   root.appendChild(ft);
 
   function openSettings(open: boolean): void {

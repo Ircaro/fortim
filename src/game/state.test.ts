@@ -10,6 +10,10 @@ import {
   buildResult,
   buildUiState,
   clampSpeed,
+  commonTargetMode,
+  pruneSelection,
+  selectedUids,
+  toggleSelection,
   createControlState,
   decideTap,
   keyToAction,
@@ -36,6 +40,7 @@ function tap(partial: Partial<TapInput>): TapInput {
     pending: null,
     touch: false,
     shift: false,
+    multi: false,
     towerUid: null,
     canPlace: true,
     ...partial,
@@ -296,5 +301,67 @@ describe('logicalToClient', () => {
     const flat = { cellToClient: () => ({ x: 0, y: 0 }), cellAt: () => null };
     const p = logicalToClient(flat, 0, 0, { left: 0, top: 0, width: 1200, height: 480 }, 768, 480);
     expect(p).toEqual({ x: 216, y: 0 });
+  });
+});
+
+describe('seleção de várias torres', () => {
+  it('shift + clique numa torre alterna a seleção no mouse', () => {
+    expect(decideTap(tap({ towerUid: 4, shift: true }))).toEqual({ kind: 'toggle', uid: 4 });
+  });
+
+  it('no toque o shift não alterna, só o modo Selecionar várias', () => {
+    expect(decideTap(tap({ towerUid: 4, shift: true, touch: true }))).toEqual({ kind: 'select', uid: 4 });
+    expect(decideTap(tap({ towerUid: 4, multi: true, touch: true }))).toEqual({ kind: 'toggle', uid: 4 });
+  });
+
+  it('com torre escolhida para construir, tocar numa torre continua selecionando uma só', () => {
+    expect(decideTap(tap({ picking: 'mago', towerUid: 9, multi: true, canPlace: false }))).toEqual({ kind: 'select', uid: 9 });
+  });
+
+  it('tocar no vazio no modo Selecionar várias limpa a seleção', () => {
+    expect(decideTap(tap({ multi: true, towerUid: null }))).toEqual({ kind: 'deselect' });
+  });
+
+  it('alternar junta torres num grupo e desfaz quando sobra uma', () => {
+    let sel = toggleSelection({ selectedUid: null, group: [] }, 1);
+    expect(sel).toEqual({ selectedUid: 1, group: [] });
+    sel = toggleSelection(sel, 2);
+    expect(sel).toEqual({ selectedUid: null, group: [1, 2] });
+    sel = toggleSelection(sel, 3);
+    expect(selectedUids(sel)).toEqual([1, 2, 3]);
+    sel = toggleSelection(sel, 2);
+    expect(sel).toEqual({ selectedUid: null, group: [1, 3] });
+    sel = toggleSelection(sel, 1);
+    expect(sel).toEqual({ selectedUid: 3, group: [] });
+    sel = toggleSelection(sel, 3);
+    expect(sel).toEqual({ selectedUid: null, group: [] });
+  });
+
+  it('tira do grupo as torres vendidas', () => {
+    const sel = { selectedUid: null, group: [1, 2, 3] };
+    expect(pruneSelection(sel, (uid) => uid !== 2)).toEqual({ selectedUid: null, group: [1, 3] });
+    expect(pruneSelection(sel, (uid) => uid === 3)).toEqual({ selectedUid: 3, group: [] });
+    expect(pruneSelection(sel, () => true)).toBe(sel);
+  });
+
+  it('o grupo aparece no estado da interface com o alvo de cada torre', () => {
+    const battle = createDefaultBattle();
+    const a = battle.build('arqueiro', 0, 1);
+    const b = battle.build('arqueiro', 1, 1);
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    battle.setTargetMode(b!.uid, 'forte');
+    const control = { ...createControlState(), screen: 'jogo' as const, group: [a!.uid, b!.uid], multiMode: true };
+    const state = buildUiState(battle, TOWER_ORDER, control, CTX);
+    expect(state.selected).toBeNull();
+    expect(state.multiMode).toBe(true);
+    expect(state.group.map((t) => t.targetMode)).toEqual(['primeiro', 'forte']);
+    expect(commonTargetMode(state.group)).toBeNull();
+    battle.setTargetMode(a!.uid, 'forte');
+    expect(commonTargetMode(buildUiState(battle, TOWER_ORDER, control, CTX).group)).toBe('forte');
+  });
+
+  it('sem torres não existe alvo em comum', () => {
+    expect(commonTargetMode([])).toBeNull();
   });
 });

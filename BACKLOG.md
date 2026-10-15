@@ -9,13 +9,15 @@
 
 ## Depois
 
-- **Link fixo (Cloudflare Pages)**: hoje o teste no celular usa um túnel temporário do Cloudflare que só funciona com o computador ligado. Publicar no Pages exige login na conta Cloudflare do Írcaro
-- **Ícones de app** (PNG 192/512 + manifest) junto com o link fixo
+- **Ícones de app** (PNG 192/512 + manifest) para instalar o jogo na tela inicial do celular
 - **Torres candidatas**: Mina de Ouro (gera ouro por onda) e Torre de Veneno (dano contínuo, impede cura)
 - **Cores fixas no código**: ponte, Rei Goblin e chamas usam cores fixas em `render/`; dá para levar para a `Palette`
 
 ## Feito
 
+- **Reiniciar a fase** pelo botão do topo ou pelo menu de pausa, sempre com confirmação (pausa o jogo enquanto pergunta e apaga a partida salva)
+- **Seleção de várias torres** (Shift + clique, ou "Selecionar várias" na ficha no celular): a ficha lista o modo de alvo de cada uma, "Alvo de todas" troca o de todas de uma vez e o mapa mostra o alcance e uma etiqueta com o alvo de cada selecionada
+- **Publicado no GitHub Pages**: https://ircaro.github.io/fortim, atualizado sozinho a cada push na `main` pelo workflow `.github/workflows/pages.yml` (roda os testes antes de publicar)
 - **5 fases** com desbloqueio, estrelas de 1 a 3 e progresso salvo: Vale do Fortim, Floresta Sinuosa, Desfiladeiro (trilha cruza sobre uma ponte), Encruzilhada (2 entradas em zigue-zague), Cerco ao Fortim (castelo no centro, espirais dos dois lados)
 - **Modos** Campanha e Infinito (escolhendo a fase, recorde de onda por fase); **dificuldade** Fácil, Normal e Difícil
 - **Inimigos novos**: Curandeiro, Escudeiro, Lodo (divide em lodinhos); **chefe** Rei Goblin na onda 15 de cada fase (invoca goblins, barra de vida no topo); no infinito, chefe a cada 10 ondas a partir da 25

@@ -1,4 +1,4 @@
-import type { BattleApi, EnemyDef, EnemyId, GridPoint, PowerId, TowerId, WaveDef } from '../core/types';
+import type { BattleApi, EnemyDef, EnemyId, GridPoint, PowerId, TargetMode, TowerId, TowerState, WaveDef } from '../core/types';
 import type { BossView, MenuState, PowerView, ResultData, Screen, ScreenPoint, SpecOption, TutorialView, UiState } from '../core/view';
 import { TILE } from '../config';
 import { POWERS, POWER_ORDER } from '../data/powers';
@@ -9,6 +9,8 @@ export interface ControlState {
   screen: Screen;
   picking: TowerId | null;
   selectedUid: number | null;
+  group: number[];
+  multiMode: boolean;
   aiming: PowerId | null;
   speed: number;
   paused: boolean;
@@ -22,6 +24,8 @@ export function createControlState(touch = false, muted = false): ControlState {
     screen: 'menu',
     picking: null,
     selectedUid: null,
+    group: [],
+    multiMode: false,
     aiming: null,
     speed: 1,
     paused: false,
@@ -29,6 +33,40 @@ export function createControlState(touch = false, muted = false): ControlState {
     touch,
     result: null,
   };
+}
+
+export interface Selection {
+  selectedUid: number | null;
+  group: number[];
+}
+
+export function selectedUids(selection: Selection): number[] {
+  if (selection.group.length > 0) return [...selection.group];
+  return selection.selectedUid === null ? [] : [selection.selectedUid];
+}
+
+function fromUids(uids: number[]): Selection {
+  if (uids.length === 0) return { selectedUid: null, group: [] };
+  if (uids.length === 1) return { selectedUid: uids[0], group: [] };
+  return { selectedUid: null, group: uids };
+}
+
+export function toggleSelection(selection: Selection, uid: number): Selection {
+  const uids = selectedUids(selection);
+  const next = uids.includes(uid) ? uids.filter((u) => u !== uid) : [...uids, uid];
+  return fromUids(next);
+}
+
+export function pruneSelection(selection: Selection, exists: (uid: number) => boolean): Selection {
+  const uids = selectedUids(selection);
+  const kept = uids.filter(exists);
+  return kept.length === uids.length ? selection : fromUids(kept);
+}
+
+export function commonTargetMode(towers: readonly TowerState[]): TargetMode | null {
+  if (towers.length === 0) return null;
+  const first = towers[0].targetMode;
+  return towers.every((t) => t.targetMode === first) ? first : null;
 }
 
 export interface UiContext {
@@ -92,6 +130,7 @@ export function buildUiState(battle: BattleApi, towerIds: readonly TowerId[], co
   const affordable = {} as Record<TowerId, boolean>;
   for (const id of towerIds) affordable[id] = battle.canAfford(id);
   const selected = control.selectedUid === null ? null : battle.towers.find((t) => t.uid === control.selectedUid) ?? null;
+  const group = control.group.map((uid) => battle.towers.find((t) => t.uid === uid)).filter((t): t is TowerState => t !== undefined);
   const upcoming = upcomingWave(battle);
   return {
     menu: context.menu,
@@ -116,6 +155,8 @@ export function buildUiState(battle: BattleApi, towerIds: readonly TowerId[], co
     phase: battle.phase,
     picking: control.picking,
     selected,
+    group,
+    multiMode: control.multiMode,
     upgradeCost: selected ? battle.upgradeCost(selected.uid) : null,
     sellValue: selected ? battle.sellValue(selected.uid) : 0,
     affordable,
@@ -159,6 +200,7 @@ export type TapAction =
   | { kind: 'build'; col: number; row: number; keepPicking: boolean }
   | { kind: 'ghost'; col: number; row: number }
   | { kind: 'select'; uid: number }
+  | { kind: 'toggle'; uid: number }
   | { kind: 'deselect' }
   | { kind: 'error' }
   | { kind: 'none' };
@@ -169,6 +211,7 @@ export interface TapInput {
   pending: GridPoint | null;
   touch: boolean;
   shift: boolean;
+  multi: boolean;
   towerUid: number | null;
   canPlace: boolean;
 }
@@ -186,7 +229,10 @@ export function decideTap(input: TapInput): TapAction {
     if (!input.canPlace) return { kind: 'error' };
     return { kind: 'build', col: cell.col, row: cell.row, keepPicking: !input.touch && input.shift };
   }
-  if (cell !== null && input.towerUid !== null) return { kind: 'select', uid: input.towerUid };
+  if (cell !== null && input.towerUid !== null) {
+    if (input.multi || (!input.touch && input.shift)) return { kind: 'toggle', uid: input.towerUid };
+    return { kind: 'select', uid: input.towerUid };
+  }
   return { kind: 'deselect' };
 }
 

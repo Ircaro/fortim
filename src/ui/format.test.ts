@@ -8,6 +8,7 @@ import {
   hudWave,
   levelText,
   pauseLabel,
+  restartConfirmText,
   sellLabel,
   soundLabel,
   speedLabel,
@@ -97,5 +98,12 @@ describe('rótulos', () => {
     expect(damageTypeName('fisico')).toBe('Físico');
     expect(yesNo(true)).toBe('Sim');
     expect(yesNo(false)).toBe('Não');
+  });
+});
+
+describe('confirmação de reiniciar', () => {
+  it('avisa que a partida se perde e de onde a fase recomeça', () => {
+    expect(restartConfirmText('Vale do Fortim', false)).toBe('A partida atual será perdida, e Vale do Fortim recomeça da onda 1, com o ouro e as vidas do começo.');
+    expect(restartConfirmText('Vale do Fortim', true)).toContain('modo infinito');
   });
 });

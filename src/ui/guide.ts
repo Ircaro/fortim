@@ -123,6 +123,7 @@ export function createGuideModal(onClose: () => void = () => {}): GuideModal {
     'Misture as torres: cada inimigo tem uma fraqueza diferente.',
     'Dá para construir e melhorar durante a onda. Pause para pensar com calma.',
     'Vender devolve 70% do que você gastou na torre.',
+    'Para trocar o alvo de várias torres de uma vez, selecione todas (Shift + clique, ou "Selecionar várias" na ficha da torre) e use "Alvo de todas".',
   ]) tips.appendChild(h('li', '', line));
 
   const powersTitle = h('h3', 'ft-guide-title', 'Poderes');
@@ -146,6 +147,7 @@ export function createGuideModal(onClose: () => void = () => {}): GuideModal {
     ['F', 'velocidade'],
     ['M', 'som'],
     ['Esc', 'cancelar'],
+    ['Shift + clique', 'selecionar várias torres'],
   ]) {
     const item = h('span', 'ft-keyitem');
     item.append(h('kbd', 'ft-kbd', k), h('span', '', label));

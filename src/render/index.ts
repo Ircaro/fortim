@@ -7,6 +7,7 @@ import type { StageDef } from '../data/stages';
 import { TOWERS } from '../data/towers';
 import { towerLevel } from '../sim/battle';
 import { fontFamily, palette } from '../theme';
+import { targetModeName } from '../ui/format';
 import type { Palette } from '../theme';
 import { MAP_RADIUS, paintBackground, paintBridge } from './background';
 import {
@@ -77,6 +78,7 @@ const BOLT_LIFE = 0.15;
 const ARROW_COUNT = 22;
 const ARROW_SPREAD = 0.45;
 const PLUS_FONT_SIZE = Math.round(T * 0.26);
+const TAG_FONT_SIZE = Math.round(T * 0.27);
 
 const KIND_TOWER: Record<ProjectileKind, TowerId> = {
   flecha: 'arqueiro',
@@ -160,7 +162,7 @@ export function createRenderer(host: HTMLElement): RendererApi {
   let layout: Layout = computeLayout(0, 0);
   let dpr = 1;
   let battle: BattleApi | null = null;
-  let selected: number | null = null;
+  let selected: number[] = [];
   let hovered: number | null = null;
   let ghost: Ghost | null = null;
   let aim: PowerAim | null = null;
@@ -468,7 +470,7 @@ export function createRenderer(host: HTMLElement): RendererApi {
         towerVis.delete(t.uid);
         fx.burst(FX_BIT, t.x, t.y, 12, T * 2, T * 0.1, 0.6, C_TOWER, t.def.id);
         fx.burst(FX_DUST, t.x, t.y + T * 0.15, 8, T * 1.4, T * 0.08, 0.45, C_DUST, '');
-        if (selected === t.uid) selected = null;
+        if (selected.includes(t.uid)) selected = selected.filter((uid) => uid !== t.uid);
         if (hovered === t.uid) hovered = null;
         break;
       }
@@ -550,6 +552,27 @@ export function createRenderer(host: HTMLElement): RendererApi {
     for (const [uid, v] of towerVis) if (v.seen !== frameId) towerVis.delete(uid);
     for (const [uid, v] of enemyVis) if (v.seen !== frameId) enemyVis.delete(uid);
     for (const [uid, v] of projVis) if (v.seen !== frameId) projVis.delete(uid);
+  }
+
+  function drawTargetTags(p: Palette, towers: readonly TowerState[]): void {
+    ctx.font = `800 ${TAG_FONT_SIZE}px ${fontFamily()}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const height = TAG_FONT_SIZE + T * 0.16;
+    for (const t of towers) {
+      const text = targetModeName(t.targetMode);
+      const width = ctx.measureText(text).width + T * 0.26;
+      const x = Math.min(WORLD_WIDTH - width / 2 - 2, Math.max(width / 2 + 2, t.x));
+      const y = Math.max(height / 2 + 2, t.y - T * 0.78);
+      ctx.fillStyle = p.bg;
+      ctx.globalAlpha = 0.88;
+      ctx.beginPath();
+      ctx.roundRect(x - width / 2, y - height / 2, width, height, height / 2.6);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = p.castle;
+      ctx.fillText(text, x, y + 0.5);
+    }
   }
 
   function findTower(uid: number | null): TowerState | null {
@@ -930,8 +953,12 @@ export function createRenderer(host: HTMLElement): RendererApi {
     drawPortals(p);
     drawCastleShadow(p);
 
-    const sel = findTower(selected);
-    const hov = hovered !== selected ? findTower(hovered) : null;
+    const sels: TowerState[] = [];
+    for (const uid of selected) {
+      const t = findTower(uid);
+      if (t) sels.push(t);
+    }
+    const hov = hovered !== null && !selected.includes(hovered) ? findTower(hovered) : null;
 
     if (battle) {
       const enemies = battle.enemies;
@@ -942,13 +969,13 @@ export function createRenderer(host: HTMLElement): RendererApi {
         if (lvl.aura) drawAura(p, t, lvl.range);
       }
       if (hov) drawRange(hov.x, hov.y, levelOf(hov).range, p.ink, 0.035, 0.22);
-      if (sel) drawRange(sel.x, sel.y, levelOf(sel).range, p.ink, 0.06, 0.4);
+      for (const sel of sels) drawRange(sel.x, sel.y, levelOf(sel).range, p.ink, sels.length > 1 ? 0.04 : 0.06, 0.4);
       for (let i = 0; i < enemies.length; i++) drawEnemyShadow(p, enemies[i]);
       for (let i = 0; i < towers.length; i++) {
         const t = towers[i];
         longShadow(ctx, p.shadow, t.x, t.y, towerRadius(towerScale(t, getTowerVis(t))), T * 0.55);
       }
-      if (sel) {
+      for (const sel of sels) {
         ctx.fillStyle = p.tower[sel.def.id];
         ctx.globalAlpha = 0.2;
         circlePath(ctx, sel.x, sel.y, T * 0.5);
@@ -961,6 +988,7 @@ export function createRenderer(host: HTMLElement): RendererApi {
       drawCastle(p);
       for (let i = 0; i < enemies.length; i++) if (enemies[i].def.flying) drawEnemy(p, enemies[i]);
       drawProjectiles(p);
+      if (sels.length > 1) drawTargetTags(p, sels);
     } else {
       drawGhost(p);
       drawCastle(p);
@@ -1015,7 +1043,7 @@ export function createRenderer(host: HTMLElement): RendererApi {
       fx.clear();
       shake = 0;
       freezeFlash = 0;
-      selected = null;
+      selected = [];
       hovered = null;
       ghost = null;
       aim = null;
@@ -1030,8 +1058,8 @@ export function createRenderer(host: HTMLElement): RendererApi {
     handleEvent,
     resize,
     frame,
-    setSelected(towerUid: number | null): void {
-      selected = towerUid;
+    setSelected(towerUids: readonly number[]): void {
+      selected = [...towerUids];
     },
     setHovered(towerUid: number | null): void {
       hovered = towerUid;

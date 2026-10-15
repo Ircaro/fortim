@@ -32,7 +32,7 @@ Outros comandos:
 
 ## Como jogar
 
-Escolha uma torre na loja e depois um espaço livre perto da trilha. No celular, toque uma vez para ver a prévia e o alcance e toque de novo no mesmo lugar para construir. Toque ou clique numa torre construída para melhorar, especializar, vender ou trocar o alvo. O **Guia** (ícone de livro) mostra o que funciona contra cada inimigo.
+Escolha uma torre na loja e depois um espaço livre perto da trilha. No celular, toque uma vez para ver a prévia e o alcance e toque de novo no mesmo lugar para construir. Toque ou clique numa torre construída para melhorar, especializar, vender ou trocar o alvo. Para trocar o alvo de várias torres de uma vez, use Shift + clique (ou "Selecionar várias" na ficha, no celular) e escolha em "Alvo de todas". O botão de reiniciar no topo, ou no menu de pausa, recomeça a fase depois de pedir confirmação. O **Guia** (ícone de livro) mostra o que funciona contra cada inimigo.
 
 | Tecla | Ação |
 |---|---|
@@ -46,6 +46,7 @@ Escolha uma torre na loja e depois um espaço livre perto da trilha. No celular,
 | F | Velocidade 1x, 2x, 3x |
 | M | Som |
 | Esc | Cancelar |
+| Shift + clique | Selecionar várias torres |
 
 ## Estrutura
 

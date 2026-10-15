@@ -830,3 +830,120 @@
     font-size: 16px;
   }
 }
+
+.ft-btn.danger {
+  background: var(--bad);
+  color: var(--accent-text);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--bad) 70%, #000);
+}
+
+.ft-confirm-text {
+  margin: 0;
+  color: var(--dim);
+  line-height: 1.5;
+}
+
+.ft-confirm-acts {
+  display: flex;
+  gap: 10px;
+}
+
+.ft-confirm-acts .ft-btn {
+  flex: 1;
+}
+
+.ft-multi-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.ft-multi.is-on {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: none;
+}
+
+.ft-multi-hint {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dim);
+}
+
+.ft-sheet[data-mode='posicionar'] .only-sel,
+.ft-sheet:not([data-mode='grupo']) .only-grupo,
+.ft-sheet[data-mode='grupo'] .only-torre,
+.ft-sheet[data-mode='grupo'] .only-pick,
+.ft-sheet[data-mode='grupo'] .ft-sheet-desc,
+.ft-sheet[data-mode='grupo'] .ft-rows,
+.ft-sheet[data-mode='grupo'] .ft-matchup,
+.ft-sheet[data-mode='grupo'] .ft-sheet-icon,
+.ft-sheet[data-mode='grupo'] .ft-sheet-level {
+  display: none;
+}
+
+.ft-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ft-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.ft-group-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--chip);
+}
+
+.ft-group-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.ft-group-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ft-group-mode {
+  flex: none;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.ft-target-all {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ft-group-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+.ft-seg-btn.is-part {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
